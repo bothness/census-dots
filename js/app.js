@@ -247,7 +247,7 @@ function makeLayers() {
   });
 
   // Update legend on zoom
-  map.on('zoom', function() {
+  map.on('zoom', function () {
     updateUnits();
   });
 }
@@ -327,6 +327,15 @@ function updateUnits() {
   count.innerHTML = unit;
 }
 
+// Function to set up an event listener on the map.
+function watchTiles() {
+  map.on('sourcedata', function (e) {
+    if (map.areTilesLoaded()) {
+      updateDots();
+    }
+  });
+}
+
 // INITIALISE MAP
 mapboxgl.accessToken = 'pk.eyJ1IjoiYXJrYmFyY2xheSIsImEiOiJjamdxeDF3ZXMzN2IyMnFyd3EwdGcwMDVxIn0.P2bkpp8HGNeY3-FOsxXVvA';
 var map = new mapboxgl.Map({
@@ -344,11 +353,5 @@ map.on('load', function () {
   makeLayers();
   updateUnits();
   getData(selector.value);
-});
-
-// Set up an event listener on the map.
-map.on('sourcedata', function (e) {
-  if (map.areTilesLoaded()) {
-    updateDots();
-  }
+  watchTiles();
 });
