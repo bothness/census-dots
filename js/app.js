@@ -37,7 +37,12 @@ const unitise = {
 };
 
 // Set null variables
-var data = {};
+var data = {
+  'headers': [],
+  'values': {},
+  'totals': [],
+  'perc': [],
+};
 var store = {};
 
 // Create popup class for map tooltips
@@ -271,20 +276,22 @@ function setProperties(dots) {
 
 // Function to check if new dots have been loaded
 function updateDots() {
-  let features = map.querySourceFeatures('dots', { 'sourceLayer': 'dots' });
-  let newdots = [];
-  for (feature in features) {
-    let id = features[feature].properties.id;
-    let state = map.getFeatureState({
-      source: 'dots',
-      sourceLayer: 'dots',
-      id: id
-    });
-    if (!state['color']) {
-      newdots.push(id);
+  if (data.totals[0]) {
+    let features = map.querySourceFeatures('dots', { 'sourceLayer': 'dots' });
+    let newdots = [];
+    for (feature in features) {
+      let id = features[feature].properties.id;
+      let state = map.getFeatureState({
+        source: 'dots',
+        sourceLayer: 'dots',
+        id: id
+      });
+      if (!state['color']) {
+        newdots.push(id);
+      }
     }
+    setProperties(newdots);
   }
-  setProperties(newdots);
 }
 
 // Function to generate options + set event listener
@@ -327,15 +334,6 @@ function updateUnits() {
   count.innerHTML = unit;
 }
 
-// Function to set up an event listener on the map.
-function watchTiles() {
-  map.on('sourcedata', function (e) {
-    if (map.areTilesLoaded()) {
-      updateDots();
-    }
-  });
-}
-
 // INITIALISE MAP
 mapboxgl.accessToken = 'pk.eyJ1IjoiYXJrYmFyY2xheSIsImEiOiJjamdxeDF3ZXMzN2IyMnFyd3EwdGcwMDVxIn0.P2bkpp8HGNeY3-FOsxXVvA';
 var map = new mapboxgl.Map({
@@ -353,5 +351,11 @@ map.on('load', function () {
   makeLayers();
   updateUnits();
   getData(selector.value);
-  watchTiles();
+});
+
+// Set up an event listener on the map.
+map.on('sourcedata', function (e) {
+  if (map.areTilesLoaded()) {
+    updateDots();
+  }
 });
