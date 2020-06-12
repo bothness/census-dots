@@ -22,13 +22,17 @@ const colors = [
 
 const options = {
   'Ethnicity': 'ethnicity',
+  'Social grade': 'class',
   'Hours worked': 'hours',
+  'Housing type': 'home',
   'Housing tenure': 'tenure'
 };
 
 const unitise = {
   'ethnicity': 'people',
+  'class': 'people',
   'hours': 'workers',
+  'home': 'homes',
   'tenure': 'homes'
 };
 
@@ -91,10 +95,6 @@ function tsv2json(string) {
 // Function to get data
 function getData(dim) {
   spinner.style.display = 'flex';
-  map.removeFeatureState({
-    source: 'dots',
-    sourceLayer: 'dots'
-  });
   let dataurl = url[0] + dim + url[1];
   if (!store[dim]) {
     fetch(dataurl)
@@ -108,6 +108,8 @@ function getData(dim) {
         data = newdata;
         store[dim] = newdata;
         genLegend(data);
+        clearDots();
+        updateDots();
         units.innerHTML = unitise[dim];
         spinner.style.display = 'none';
         return true;
@@ -115,6 +117,8 @@ function getData(dim) {
   } else {
     data = store[dim];
     genLegend(data);
+    clearDots();
+    updateDots();
     units.innerHTML = unitise[dim];
     spinner.style.display = 'none';
   }
@@ -296,8 +300,15 @@ function genOptions(options) {
   selector.innerHTML = html;
   selector.onchange = () => {
     getData(selector.value);
-    updateDots();
   }
+}
+
+// Function to clear map dots styling
+function clearDots() {
+  map.removeFeatureState({
+    source: 'dots',
+    sourceLayer: 'dots'
+  });
 }
 
 // Function to add legend scale
