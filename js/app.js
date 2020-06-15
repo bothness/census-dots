@@ -133,10 +133,14 @@ function getData(dim) {
 function getColor(value, breaks) {
   for (i in breaks) {
     if (value < breaks[i]) {
-      return colors[i];
+      if (document.getElementById('legend' + i).checked) {
+        return [colors[i], i];
+      } else {
+        return [null, i];
+      }
     }
   }
-  return 'rgba(255, 255, 255, 0)';
+  return [null, null];
 }
 
 // Function to add layers to mapp
@@ -174,10 +178,11 @@ function makeLayers() {
         ['case',
           ['!=', ['feature-state', 'color'], null],
           ['feature-state', 'color'],
-          'rgba(255, 255, 255, 0)'
+          'rgba(0, 0, 0, 0)'
         ],
       'circle-radius':
-        ['interpolate', ['linear'], ['zoom'], 8, 1, 10, 1, 14, 2]
+        ['interpolate', ['linear'], ['zoom'], 8, 1, 12, 1.5, 14, 2],
+      'circle-opacity': 0.7
     }
   }, 'boundary_country');
 
@@ -187,8 +192,9 @@ function makeLayers() {
     source: 'bounds',
     'source-layer': 'OA_bound_ethnicity',
     "paint": {
-      "fill-outline-color": "rgba(250, 250, 250, 0)",
-      "fill-color": "rgba(250, 250, 250, 0)"
+      "fill-outline-color": "#ffffff",
+      "fill-color": "#ffffff",
+      "fill-opacity": 0
     }
   }, 'boundary_country');
 
@@ -204,7 +210,7 @@ function makeLayers() {
         1,
         0
       ],
-      "line-color": "rgb(0, 0, 0)",
+      "line-color": "rgb(255, 255, 255)",
       "line-width": 1
     }
   }, 'boundary_country');
@@ -269,9 +275,11 @@ function setProperties(dots) {
       sourceLayer: 'dots',
       id: dots[dot]
     }, {
-      color: color
+      color: color[0],
+      group: color[1]
     });
   }
+  updateLegend();
 }
 
 // Function to check if new dots have been loaded
@@ -291,6 +299,32 @@ function updateDots() {
       }
     }
     setProperties(newdots);
+  }
+}
+
+// Function to update legend
+function updateLegend() {
+
+  // Initialise counts for each group
+  let counts = [];
+  for (i in data.headers) {
+    counts.push(0);
+  }
+
+  // Add add group counts for each visible feature
+  let features = map.queryRenderedFeatures({ layers: ['dots-join'] });
+  for (feature in features) {
+    let group = features[feature].state.group;
+    if (group != null) {
+      counts[+group] += 1;
+    }
+  }
+
+  // Turn counts into percentages + render to DOM
+  let sum = counts.reduce((a, b) => a + b);
+  let perc = counts.map((num) => Math.round((num / sum) * 100));
+  for (i in perc) {
+    document.getElementById('perc' + i).innerHTML = perc[i] + '%';
   }
 }
 
@@ -322,9 +356,16 @@ function clearDots() {
 function genLegend(data) {
   let html = '';
   for (i in data.headers) {
-    html += '<p class="mb-1"><span class="dot mr-1" style="background-color:' + colors[i] + ';"></span>' + data.headers[i] + ' ' + data.perc[i] + '%</p>';
+    html += '<p class="mb-1"><span class="dot mr-1" style="background-color:' + colors[i] + ';"></span><input type="checkbox" id="legend' + i + '" checked /> <small>' + data.headers[i] + ' <span id="perc' + i + '"></span> <span class="text-secondary">(' + data.perc[i] + '%)</span></small></p>';
   }
   legend.innerHTML = html;
+  for (i in data.headers) {
+    let element = document.getElementById('legend' + i);
+    element.onclick = () => {
+      clearDots();
+      updateDots();
+    };
+  }
 }
 
 // Function to display units based on zoom
@@ -338,7 +379,7 @@ function updateUnits() {
 mapboxgl.accessToken = 'pk.eyJ1IjoiYXJrYmFyY2xheSIsImEiOiJjamdxeDF3ZXMzN2IyMnFyd3EwdGcwMDVxIn0.P2bkpp8HGNeY3-FOsxXVvA';
 var map = new mapboxgl.Map({
   container: 'map',
-  style: './data/style-omt.json',
+  style: './data/style-dark.json',
   center: [-1.2471735, 50.8625412],
   zoom: 12,
   maxZoom: 14,

@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.0/css/bootstrap.min.css" />
   <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.css' rel='stylesheet' />
   <style>
+    body {
+      background-color: #222222;
+    }
+
     #map {
       height: 100vh;
       width: 100vw;
@@ -19,15 +23,16 @@
     }
 
     #search {
+      background-color: #222222dd;
+      color: #eeeeee;
       pointer-events: all;
-      background-color: white;
     }
 
     #loader {
       position: absolute;
       width: 100vw;
       height: 100vh;
-      background-color: #ffffff77;
+      background-color: #22222277;
       z-index: 90;
     }
 
@@ -51,11 +56,12 @@
         <p class="font-weight-bold h4">Census Dot Density, 2011</p>
         <div class="form-row my-2">
           <div class="col">
-            <select id="selector" class="form-control"></select>
+            <select id="selector" class="form-control form-control-sm"></select>
           </div>
         </div>
         <div id="legend"></div>
         <p class="mt-2 mb-0">1 dot = <span id="count"></span> <span id="units"></span></p>
+        <p class="mb-0"><small>% in this area <span class="text-secondary">(% national avg)</span></small></p>
       </div>
     </div>
   </div>
