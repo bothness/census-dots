@@ -312,11 +312,16 @@ function updateLegend() {
   }
 
   // Add add group counts for each visible feature
-  let features = map.queryRenderedFeatures({ layers: ['dots-join'] });
+  let features = map.queryRenderedFeatures({ layers: ['bounds'] });
+  let ids = [];
   for (feature in features) {
-    let group = features[feature].state.group;
-    if (group != null) {
-      counts[+group] += 1;
+    ids.push(features[feature].id);
+  }
+  ids = ids.filter((v, i, a) => a.indexOf(v) === i); 
+  for (i in ids) {
+    let values = data.values[ids[i]].counts;
+    for (val in values) {
+      counts[val] += values[val];
     }
   }
 
