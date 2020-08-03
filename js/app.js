@@ -1,8 +1,9 @@
 // API url
 const url = [
   './data/',
-  '.tsv'
+  '.csv'
 ];
+const api = 'https://pmd3-production-drafter-onsgeo.publishmydata.com/v1/sparql/live?query=';
 
 // DOM elements
 const spinner = document.getElementById('loader');
@@ -10,6 +11,8 @@ const selector = document.getElementById('selector');
 const legend = document.getElementById('legend');
 const units = document.getElementById('units');
 const count = document.getElementById('count');
+const form = document.getElementById('form');
+const postcode = document.getElementById('postcode');
 
 // Colors and options
 const colors = [
@@ -61,20 +64,20 @@ function tsv2json(string) {
   };
   string = string.replace(/['"]+/g, '');
   let array = string.split('\n');
-  let headers = array[0].split('\t');
+  let headers = array[0].split(',');
   headers.shift();
   json.headers = headers;
   for (i in headers) {
     json.totals.push(0);
   }
   for (var i = 1; i < array.length; i++) {
-    let row = array[i].split('\t');
+    let row = array[i].split(',');
     if (row[1]) {
       let tot = 0;
       let counts = [];
       let breaks = [];
       for (j = 1; j < row.length; j++) {
-        let val = parseInt(row[j]);
+        let val = +row[j];
         tot += Math.round(val / 10);
         counts.push(val);
         breaks.push(tot);
@@ -95,6 +98,28 @@ function tsv2json(string) {
     json.perc.push(perc);
   }
   return json;
+}
+
+// Function to convert JSON to GeoJSON
+function json2geo(json) {
+  let geojson = {
+    "type": "FeatureCollection",
+    "features": []
+  };
+  for (i in json) {
+    let feature = {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [+json[i].lng, +json[i].lat]
+      },
+      "properties": {
+        "code": json[i].code
+      }
+    };
+    geojson.features.push(feature);
+  }
+  return geojson;
 }
 
 // Function to get data
@@ -143,7 +168,7 @@ function getColor(value, breaks) {
   return [null, null];
 }
 
-// Function to add layers to mapp
+// Function to add layers to map
 function makeLayers() {
 
   // Variable for highlighting areas
@@ -163,7 +188,7 @@ function makeLayers() {
     "type": "vector",
     "promoteId": { "OA_bound_ethnicity": "oa11cd" },
     "tiles": ["https://cdn.ons.gov.uk/maptiles/t9/{z}/{x}/{y}.pbf"],
-    "minzoom": 0,
+    "minzoom": 11,
     "maxzoom": 14
   });
 
@@ -267,7 +292,7 @@ function makeLayers() {
 function setProperties(dots) {
   for (dot in dots) {
     let code = dots[dot].substring(0, 9);
-    let num = parseInt(dots[dot].substring(9, 11));
+    let num = +dots[dot].substring(9, 11);
     let color = getColor(num, data.values[code].breaks);
 
     map.setFeatureState({
@@ -279,7 +304,9 @@ function setProperties(dots) {
       group: color[1]
     });
   }
-  updateLegend();
+  if (map.isSourceLoaded('centroids')) {
+    updateLegend();
+  }
 }
 
 // Function to check if new dots have been loaded
@@ -312,12 +339,12 @@ function updateLegend() {
   }
 
   // Add add group counts for each visible feature
-  let features = map.queryRenderedFeatures({ layers: ['bounds'] });
+  let features = map.queryRenderedFeatures({ layers: ['centroids'] });
   let ids = [];
   for (feature in features) {
     ids.push(features[feature].id);
   }
-  ids = ids.filter((v, i, a) => a.indexOf(v) === i); 
+  // ids = ids.filter((v, i, a) => a.indexOf(v) === i);
   for (i in ids) {
     let values = data.values[ids[i]].counts;
     for (val in values) {
@@ -373,11 +400,64 @@ function genLegend(data) {
   }
 }
 
+// Function to load OA centroids (for calculating averages in view)
+function loadCentroids() {
+  fetch(url[0] + 'oalatlng' + url[1])
+  .then(response => response.text())
+  .then(rawdata => d3.csvParse(rawdata))
+  .then(data => json2geo(data))
+  .then(geojson => {
+    console.log(geojson);
+    map.addSource('centroids', {
+      "type": "geojson",
+      "data": geojson,
+      "promoteId": "code"
+    });
+    map.addLayer({
+      id: 'centroids',
+      type: 'circle',
+      source: 'centroids',
+      paint: {
+        'circle-opacity': 0,
+        'circle-radius': 0
+      }
+    });
+  })
+}
+
 // Function to display units based on zoom
 function updateUnits() {
   let zoom = map.getZoom();
   let unit = zoom >= 13 ? 10 : zoom >= 12 ? 20 : zoom >= 11 ? 40 : zoom >= 10 ? 80 : zoom >= 9 ? 160 : 320;
   count.innerHTML = unit;
+}
+
+// Function to get a postcode lng/lat from COGS
+function gotoPostcode(e) {
+  let code = postcode.value.replace(new RegExp(' ', 'g'), '').toUpperCase();
+  let query = `SELECT ?lat ?lng
+  WHERE {
+    <http://statistics.data.gov.uk/id/postcode/unit/${code}> <http://www.w3.org/2003/01/geo/wgs84_pos#lat> ?lat ;
+    <http://www.w3.org/2003/01/geo/wgs84_pos#long> ?lng .
+  }
+  LIMIT 1`;
+  let url = api + encodeURIComponent(query);
+
+  fetch(url)
+    .then(response => response.text())
+    .then(rawdata => d3.csvParse(rawdata))
+    .then(data => {
+      if (data[0]) {
+        map.flyTo({
+          center: [data[0].lng, data[0].lat],
+          zoom: 14
+        });
+      } else {
+        postcode.value = null;
+        postcode.placeholder = "Not found. Type a postcode...";
+      }
+    });
+  e.preventDefault();
 }
 
 // INITIALISE MAP
@@ -396,6 +476,7 @@ map.on('load', function () {
   genOptions(options);
   makeLayers();
   updateUnits();
+  loadCentroids();
   getData(selector.value);
 });
 
@@ -405,3 +486,6 @@ map.on('sourcedata', function (e) {
     updateDots();
   }
 });
+
+// Set event listener on postcode search
+form.addEventListener('submit', gotoPostcode);
